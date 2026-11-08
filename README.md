@@ -14,6 +14,18 @@
 - **跟随主题**：使用 DSH 主题 token，支持明暗主题；字体优先微软雅黑。
 - **动效克制**：下拉逐项展开、选中圆角底色 180ms 淡入淡出，遵循系统的减少动态效果偏好。
 
+## 预览
+
+> 以下为交互设计预览（在独立预览页面中渲染），**不是安装后的运行截图**；实际外观以插件安装后的 DSH 界面为准。
+
+![子代理模型选择弹窗：任务序号在行首，模型为可滚动列表，蓝色圆角选中态，底部为 60 秒倒计时](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-dialog.png)
+
+![任务下拉：每个任务后显示已选模型的蓝色圆角标签](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-tasks.png)
+
+| 深色主题 | 任务栏模型标签 |
+| --- | --- |
+| ![深色主题下的同一个弹窗](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-dark.png) | ![任务栏中每个任务后的模型标签](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-taskbar.png) |
+
 ## 环境要求
 
 - 依据 DSH `0.2.2-rc.1` 的公开契约编写；接口签名随版本变化的可能始终存在。

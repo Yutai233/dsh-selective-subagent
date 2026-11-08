@@ -1,10 +1,29 @@
 {
   "name": "dsh-selective-subagent",
   "version": "1.0.0",
-  "private": true,
   "type": "module",
   "description": "Choose a model before each in-process subagent starts, with a 60-second idle fallback to the DSH route.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "subagent",
+    "model-selection"
+  ],
+  "author": "Yutai233",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yutai233/dsh-selective-subagent.git"
+  },
+  "homepage": "https://github.com/Yutai233/dsh-selective-subagent#readme",
+  "bugs": {
+    "url": "https://github.com/Yutai233/dsh-selective-subagent/issues"
+  },
+  "engines": {
+    "node": ">=18",
+    "dsh": ">=0.2.2-rc.1"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",

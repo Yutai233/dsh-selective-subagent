@@ -1,0 +1,7 @@
+- insert:
+    - id: selective-subagent-models
+      name: 'dsh-selective-subagent'
+      config:
+        enabled: true
+        idleMs: 60000
+        askOncePerParent: false

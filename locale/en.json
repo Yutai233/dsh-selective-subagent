@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Subagent model selection",
+    "description": "Choose a model before a subagent's first request. After 60 idle seconds, keep the DSH route. Show model badges beside tasks."
+  }
+}

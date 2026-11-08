@@ -1,0 +1,21 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build client bundle
+        run: node build.mjs
+      - name: Verify committed client.js matches its sources
+        run: git diff --exit-code client.js
+      - name: Run logic tests
+        run: node --test test/*.mjs

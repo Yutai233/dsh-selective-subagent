@@ -1,0 +1,24 @@
+{
+  "name": "dsh-selective-subagent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Choose a model before each in-process subagent starts, with a 60-second idle fallback to the DSH route.",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "scripts": { "build": "node build.mjs", "test": "node --test test/*.mjs" },
+  "files": ["index.js", "client.js", "host", "test", "client-source.js", "ui.css", "build.mjs", "cordis.patch.yml", "locale/*.json", "icon.svg", "README.md"],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-connection", "@deepseek-ai/dsh-client-ui-conversation", "@deepseek-ai/dsh-client-ui-theme", "@deepseek-ai/dsh-api-remotes", "@deepseek-ai/dsh-client-locale"]
+    }
+  }
+}

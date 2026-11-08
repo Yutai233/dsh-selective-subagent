@@ -1,0 +1,10 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import {Script} from 'node:vm';
+const directory=new URL('./',import.meta.url);
+const source=await readFile(new URL('client-source.js',directory),'utf8');
+const css=await readFile(new URL('ui.css',directory),'utf8');
+const artifact=`window.__ModuleLoader__.load({\n id:'dsh-selective-subagent',\n factory(require){\n const CSS_TEXT=${JSON.stringify(css)};\n${source}\n }\n});\n`;
+new Script(artifact,{filename:'client.js'});
+await writeFile(new URL('client.js',directory),artifact,'utf8');
+console.log('Built '+fileURLToPath(new URL('client.js',directory)));

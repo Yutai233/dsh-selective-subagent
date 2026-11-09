@@ -14,17 +14,36 @@
 - **跟随主题**：使用 DSH 主题 token，支持明暗主题；字体优先微软雅黑。
 - **动效克制**：下拉逐项展开、选中圆角底色 180ms 淡入淡出，遵循系统的减少动态效果偏好。
 
-## 预览
+## 实际运行截图
 
-> 以下为交互设计预览（在独立预览页面中渲染），**不是安装后的运行截图**；实际外观以插件安装后的 DSH 界面为准。
+以下图片于 **2026-11-09** 从已经安装本插件的 DSH Desktop 窗口截取；仅裁剪插件区域，没有重绘界面。截图中的模型来自测试环境的真实 Provider 配置，不代表安装插件后会自动获得这些模型。
 
-![子代理模型选择弹窗：任务序号在行首，模型为可滚动列表，蓝色圆角选中态，底部为 60 秒倒计时](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-dialog.png)
+### 模型选择弹窗
 
-![任务下拉：每个任务后显示已选模型的蓝色圆角标签](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-tasks.png)
+![实际运行的子代理模型选择弹窗，包含真实模型列表、搜索框和无操作倒计时](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/live-dialog.png)
 
-| 深色主题 | 任务栏模型标签 |
+### 任务栏与实际生效模型
+
+本次小测试原定使用 `mirrocoding / gpt-6.1-sol`；用户在弹窗选择 `deepseek-official / deepseek-flash` 后，标准 `model/selection` 和第一次 `request/header` 均记录了新模型，任务返回「验证完成」。下图是执行后的插件任务栏。
+
+![实际任务栏显示已完成的测试任务以及生效的模型标签](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/live-taskbar.png)
+
+详见 [运行验证记录](docs/verification.md)。
+
+<details>
+<summary>早期交互设计稿（不是实际运行截图）</summary>
+
+以下是实现前的独立设计预览，保留作设计参考；请以上面的实景截图为准。
+
+![模型选择弹窗设计稿](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-dialog.png)
+
+![任务下拉与模型标签设计稿](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-tasks.png)
+
+| 深色主题设计稿 | 任务栏标签设计稿 |
 | --- | --- |
-| ![深色主题下的同一个弹窗](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-dark.png) | ![任务栏中每个任务后的模型标签](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-taskbar.png) |
+| ![深色弹窗设计稿](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-dark.png) | ![任务栏设计稿](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/preview-taskbar.png) |
+
+</details>
 
 ## 环境要求
 
@@ -77,7 +96,7 @@ config:
   - 默认与超时路径完全不调用 `select`，原路由原样保留。
 - **Client**：`client-source.js` + `ui.css` → 由 `build.mjs` 打包成 DSH ModuleLoader 使用的 `client.js`。
   - 两个扩展位：`shell.overlay`（选择弹窗）、`conversation.composer.dock`（插件任务栏）。
-- **通信**：Connection 通用 RPC，`/api` 通道下三个端点：
+- **通信**：通过 `connection.fetch.register()` 注册 `/api` 下三个独立的精确 POST 路由，使用 Connection Client 的通用 RPC 信封；**不占用或覆盖 DSH 的共享 `/api` 拦截器**：
 
   | 端点 | 作用 |
   |---|---|
@@ -100,15 +119,17 @@ config:
 
 ```powershell
 node build.mjs            # 从 client-source.js + ui.css 生成 client.js
-node --test test/*.mjs    # Host 与 Client 逻辑测试（30 项）
+node --test test/*.mjs    # Host 与 Client 逻辑测试（33 项）
 ```
 
 `client.js` 是构建产物且随仓库提交，安装时无需构建。修改 `client-source.js` / `ui.css` 后必须重新构建，CI 会校验构建产物与源码一致。
 
 ## 状态
 
-- 源码层：Host 20 项 + Client 10 项逻辑测试通过（`node --test`）。
-- 运行层：**尚未**在安装后的真实 DSH 界面与真实子代理流程中验证；首次安装受 profile 写锁阻塞，未完成。
+- 源码层：Host 23 项（含精确路由激活、认证及请求信封检查）+ Client 10 项逻辑测试通过（`node --test`）。
+- 运行层：2026-11-09 已在 DSH Desktop / DSH `0.2.2-rc.1` 安装启用，并完成一次用户手动选择模型的小测试；标准选择记录与第一次真实请求头一致，任务成功返回。
+- 默认回退：另一次测试在约 60 秒后按原路由继续，未发生模型覆盖。
+- 该结果仅代表上述环境和流程，不代表外部子进程 provider、所有 DSH 版本或所有主题都已覆盖测试。详细步骤见 [运行验证记录](docs/verification.md)。
 
 ## 许可证
 

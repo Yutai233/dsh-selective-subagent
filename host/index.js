@@ -138,6 +138,20 @@ export function createHostController(ctx, config = {}) {
   return { queue, catalog, snapshot, created, observeEvent, invalidateCatalog, rpc, dispose };
 }
 
+export function createFetchHandler(connection, host, endpoint) {
+  return async request => {
+    const admission = connection.admit(request);
+    if ('rejection' in admission) return new Response('unauthorized', { status: admission.rejection });
+    if (!isUserPeer(admission.peer)) return new Response('forbidden', { status: 403 });
+    if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return new Response('Expected application/json.', { status: 415 });
+    let message;
+    try { message = await request.json(); } catch { return new Response('Invalid JSON.', { status: 400 }); }
+    if (!object(message) || Object.keys(message).some(key => !['type', 'rpcId', 'method', 'payload'].includes(key)) || message.type !== 'client-request' || !identifier(message.rpcId) || message.method !== endpoint || !Object.hasOwn(message, 'payload')) return new Response('Invalid RPC envelope.', { status: 400 });
+    const result = await host.rpc(endpoint, message.payload, request.signal, admission.peer);
+    return Response.json({ type: 'server-response', rpcId: message.rpcId, result });
+  };
+}
+
 export function apply(ctx, config = {}) {
   if (config.enabled === false) return;
   const host = createHostController(ctx, config);
@@ -152,6 +166,10 @@ export function apply(ctx, config = {}) {
   ctx.on('llm/adapters-updated', host.invalidateCatalog);
   ctx.on('llm/models-updated', host.invalidateCatalog);
   for (const agent of ctx.get('agents').list()) if (agent.session.header.origin === 'subagent') host.queue.remember(metadataOf(agent, ctx.get('agents')));
-  const removeRpc = ctx.get('connection').rpc.intercept('/api', endpoint => ENDPOINTS.has(endpoint), host.rpc);
-  ctx.effect(() => () => { host.dispose(); return removeRpc(); });
+  const connection = ctx.get('connection');
+  const removers = [...ENDPOINTS].map(endpoint => connection.fetch.register({
+    path: '/api/' + endpoint, methods: ['POST'], requestBody: 'buffered',
+    fetch: createFetchHandler(connection, host, endpoint),
+  }));
+  ctx.effect(() => () => { host.dispose(); return Promise.all(removers.map(remove => remove())); });
 }

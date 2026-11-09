@@ -1,6 +1,6 @@
 {
   "name": "dsh-selective-subagent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Choose a model before each in-process subagent starts, with a 60-second idle fallback to the DSH route.",
   "keywords": [

@@ -16,17 +16,23 @@
 
 ## 实际运行截图
 
-以下图片于 **2026-11-09** 从已经安装本插件的 DSH Desktop 窗口截取；仅裁剪插件区域，没有重绘界面。截图中的模型来自测试环境的真实 Provider 配置，不代表安装插件后会自动获得这些模型。
+以下图片于 **2026-11-09** 从已经安装 **1.0.1** 的 DSH Desktop 窗口截取；仅裁剪插件区域，没有重绘界面。面板使用实心表面 token，模型标签使用业务蓝色 token。截图中的模型来自测试环境的真实 Provider 配置，不代表安装插件后会自动获得这些模型。
 
 ### 模型选择弹窗
 
 ![实际运行的子代理模型选择弹窗，包含真实模型列表、搜索框和无操作倒计时](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/live-dialog.png)
 
-### 任务栏与实际生效模型
+### 任务历史浮层
 
-本次小测试原定使用 `mirrocoding / gpt-6.1-sol`；用户在弹窗选择 `deepseek-official / deepseek-flash` 后，标准 `model/selection` 和第一次 `request/header` 均记录了新模型，任务返回「验证完成」。下图是执行后的插件任务栏。
+点击底部紧凑的「子代理模型」按钮，会在入口上方打开独立浮层。任务名称、蓝色模型标签和完成状态在浮层内展示，输入框本身不改变高度。条目沿用任务下拉的阶梯式淡入动效。
 
-![实际任务栏显示已完成的测试任务以及生效的模型标签](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/live-taskbar.png)
+![1.0.1 实际任务历史浮层，包含蓝色模型标签](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/live-taskbar.png)
+
+| 收起 | 打开浮层 |
+| --- | --- |
+| ![收起时的底部入口](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/footer-collapsed.png) | ![展开后输入框位置保持不变](https://raw.githubusercontent.com/Yutai233/dsh-selective-subagent/main/docs/footer-expanded.png) |
+
+上面两张对比图使用同一窗口的同一裁剪坐标。此前另一次路由小测试已确认，用户选择 `deepseek-official / deepseek-flash` 后，标准 `model/selection` 和第一次 `request/header` 均记录了新模型，任务成功返回。
 
 详见 [运行验证记录](docs/verification.md)。
 
@@ -72,7 +78,7 @@
 2. 弹窗中为当前任务选择模型，或选择"使用 DSH 默认策略"。
 3. 勾选复用后，具体模型会应用于同一父会话尚待选择的任务和后续同级子代理。
 4. 连续 60 秒无操作，Host 按各任务原有 DSH 路由继续。弹窗内的鼠标、键盘、输入、滚轮操作会续期同一根会话的全部待选任务。
-5. 输入框下方的插件任务栏可查看实际生效的模型标签，或重新打开收起的选择弹窗。
+5. 输入框下方仅显示紧凑的「子代理模型」入口。点击后，任务历史以锚定浮层弹出，不占用页面布局、不抬升输入框；浮层条目从上到下依次淡入，点击空白处或按 Escape 收起。
 
 已经开始运行的子代理不会中途换模型。
 
@@ -95,7 +101,7 @@ config:
   - 不监听已移除的 `agent/request`，不在 `llm/stream` 中私自换模型，不注册 Tool/命令。
   - 默认与超时路径完全不调用 `select`，原路由原样保留。
 - **Client**：`client-source.js` + `ui.css` → 由 `build.mjs` 打包成 DSH ModuleLoader 使用的 `client.js`。
-  - 两个扩展位：`shell.overlay`（选择弹窗）、`conversation.composer.dock`（插件任务栏）。
+  - 两个扩展位：`shell.overlay`（模型选择弹窗与任务历史浮层）、`conversation.composer.dock`（只渲染固定高度的紧凑入口）。浮层不在 composer 内展开，避免合成层和布局挤动输入框。
 - **通信**：通过 `connection.fetch.register()` 注册 `/api` 下三个独立的精确 POST 路由，使用 Connection Client 的通用 RPC 信封；**不占用或覆盖 DSH 的共享 `/api` 拦截器**：
 
   | 端点 | 作用 |
@@ -119,14 +125,14 @@ config:
 
 ```powershell
 node build.mjs            # 从 client-source.js + ui.css 生成 client.js
-node --test test/*.mjs    # Host 与 Client 逻辑测试（33 项）
+node --test test/*.mjs    # Host 与 Client 逻辑测试（37 项）
 ```
 
 `client.js` 是构建产物且随仓库提交，安装时无需构建。修改 `client-source.js` / `ui.css` 后必须重新构建，CI 会校验构建产物与源码一致。
 
 ## 状态
 
-- 源码层：Host 23 项（含精确路由激活、认证及请求信封检查）+ Client 10 项逻辑测试通过（`node --test`）。
+- 源码层：Host 23 项（含精确路由激活、认证及请求信封检查）+ Client 14 项逻辑测试通过（`node --test`）。
 - 运行层：2026-11-09 已在 DSH Desktop / DSH `0.2.2-rc.1` 安装启用，并完成一次用户手动选择模型的小测试；标准选择记录与第一次真实请求头一致，任务成功返回。
 - 默认回退：另一次测试在约 60 秒后按原路由继续，未发生模型覆盖。
 - 该结果仅代表上述环境和流程，不代表外部子进程 provider、所有 DSH 版本或所有主题都已覆盖测试。详细步骤见 [运行验证记录](docs/verification.md)。

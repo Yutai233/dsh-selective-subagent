@@ -19,7 +19,10 @@ test('Generated loader is syntactically valid and imports only React',async()=>{
 });
 test('Styles use DSH tokens, rounded blue badges and opacity transitions',()=>{
  assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(css));
- assert.ok(css.includes('--dsw-alias-brand-primary'));
+ assert.ok(css.includes('--dsw-alias-state-business-primary'));
+ assert.ok(css.includes('--ssu-bg: var(--dsw-alias-bg-layer-1)'));
+ assert.ok(!css.includes('--ssu-bg: var(--dsw-alias-bg-overlay)'));
+ assert.ok(!css.includes('--ssu-blue: var(--dsw-alias-brand-primary)'));
  assert.ok(css.includes('.ssu-badge'));
  assert.ok(css.includes('transition:opacity 180ms ease'));
  assert.ok(css.includes('animation-delay:calc(var(--ssu-order)*40ms)'));
@@ -80,6 +83,38 @@ test('A new Host instance may restart its revision counter',async t=>{
  const connection={rpc:{async call(channel,endpoint,payload,signal){if(endpoint.endsWith('/state')){if(first){first=false;return{ok:true,value:{...snapshot('root-1',80),instanceId:'old',serverNow:stamp}};}return waitForAbort(signal);}return{ok:true,value:{...snapshot('root-1',1,[{id:'new',pending:true}]),instanceId:'new',serverNow:stamp+1}};}}};
  const store=makeStore(connection);t.after(()=>store.dispose());store.connect('root-1');await flush();
  await store.choose({id:'unused'},null,false);assert.equal(store.getSnapshot().instanceId,'new');assert.equal(store.getSnapshot().revision,1);
+});
+test('Task history is a shell overlay, never an inline details expansion',()=>{
+ assert.ok(!source.includes("h('details'"));
+ assert.ok(source.includes("id:'selective-subagent-task-history'"));
+ assert.ok(source.includes("className:'ssu-root ssu-history-layer'"));
+ assert.ok(css.includes('.ssu-history-layer { position:fixed;'));
+ assert.ok(css.includes('.ssu-history-panel { position:fixed;'));
+ assert.ok(css.includes('.ssu-history-row {'));
+ assert.ok(css.includes('animation:ssu-row-in 170ms ease-out both'));
+ assert.ok(css.includes('.ssu-history-panel,.ssu-history-row { animation:none; }'));
+});
+test('Task popover toggles without an RPC or a pending-model confirmation',()=>{
+ const store=makeStore({rpc:{call(){assert.fail('view state must not call the Host');}}});
+ const anchor={left:10,right:100,top:400,bottom:420};
+ store.toggleHistory(anchor);
+ assert.deepEqual(store.getSnapshot().historyAnchor,anchor);
+ assert.equal(store.getSnapshot().requestedTaskId,null);
+ store.closeHistory();assert.equal(store.getSnapshot().historyAnchor,null);
+ store.toggleHistory(anchor);store.toggleHistory(anchor);assert.equal(store.getSnapshot().historyAnchor,null);
+ store.dispose();
+});
+test('Opening model selection closes task history',()=>{
+ const store=makeStore({rpc:{call(){assert.fail();}}});
+ store.toggleHistory({left:0,right:100,top:100,bottom:120});store.show('task');
+ assert.equal(store.getSnapshot().historyAnchor,null);assert.equal(store.getSnapshot().requestedTaskId,'task');assert.equal(store.getSnapshot().hidden,false);
+ store.dispose();
+});
+test('Switching sessions clears the task popover anchor',async t=>{
+ const connection={rpc:{call(channel,endpoint,payload,signal){return waitForAbort(signal);}}};
+ const store=makeStore(connection);t.after(()=>store.dispose());
+ store.toggleHistory({left:0,right:100,top:100,bottom:120});
+ store.connect('next-root');assert.equal(store.getSnapshot().historyAnchor,null);
 });
 test('Structured RPC errors are reported and cannot become successful choices',async t=>{
  let first=true;

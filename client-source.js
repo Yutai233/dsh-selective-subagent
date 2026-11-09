@@ -3,14 +3,14 @@ const h = React.createElement;
 const {useState,useEffect,useRef,useSyncExternalStore} = React;
 const NS = 'selective-subagent-ui';
 const labels = {
- zh: {title:'子代理模型选择',taskbar:'子代理模型',search:'搜索模型或提供商',defaultName:'使用 DSH 默认策略',defaultDescription:'不覆盖 DSH 原有的子代理模型路由',reuse:'同一父会话后续子代理复用此选择',confirm:'确认',confirmReuse:'确认并复用',useDefault:'使用默认',after:'秒后按 DSH 默认策略继续',idle:'有操作时重新计时',close:'暂时收起（倒计时继续）',empty:'没有匹配的可用模型',waiting:'等待选择',running:'运行中',done:'已完成',cancelled:'已取消',choose:'选择',system:'跟随系统',light:'浅色',dark:'深色',theme:'切换 DSH 主题',noOverride:'不覆盖路由',defaultBadge:'DSH 默认策略',task:'任务',error:'模型选择失败',connection:'暂时无法连接模型选择服务',modelsError:'模型目录暂不可用，可使用 DSH 默认策略',readOnly:'当前连接不能代替用户选择模型'},
- en: {title:'Subagent model selection',taskbar:'Subagent models',search:'Search models or providers',defaultName:'Use the DSH default policy',defaultDescription:'Keep the existing DSH subagent model route',reuse:'Reuse this choice for later subagents of the same parent',confirm:'Confirm',confirmReuse:'Confirm and reuse',useDefault:'Use default',after:'s until the DSH default policy',idle:'Activity restarts the countdown',close:'Dismiss temporarily (countdown continues)',empty:'No matching available models',waiting:'Awaiting selection',running:'Running',done:'Completed',cancelled:'Cancelled',choose:'Choose',system:'System',light:'Light',dark:'Dark',theme:'Change the DSH theme',noOverride:'Keep route',defaultBadge:'DSH default policy',task:'Task',error:'Model selection failed',connection:'Cannot connect to the model selection service',modelsError:'Model directory is unavailable; the DSH default policy is still available',readOnly:'This connection cannot answer model questions for the user'}
+ zh: {title:'子代理模型选择',taskbar:'子代理模型',historyClose:'关闭任务浮层',historyEmpty:'暂无子代理任务',historyHint:'点击查看子任务与模型',search:'搜索模型或提供商',defaultName:'使用 DSH 默认策略',defaultDescription:'不覆盖 DSH 原有的子代理模型路由',reuse:'同一父会话后续子代理复用此选择',confirm:'确认',confirmReuse:'确认并复用',useDefault:'使用默认',after:'秒后按 DSH 默认策略继续',idle:'有操作时重新计时',close:'暂时收起（倒计时继续）',empty:'没有匹配的可用模型',waiting:'等待选择',running:'运行中',done:'已完成',cancelled:'已取消',choose:'选择',system:'跟随系统',light:'浅色',dark:'深色',theme:'切换 DSH 主题',noOverride:'不覆盖路由',defaultBadge:'DSH 默认策略',task:'任务',error:'模型选择失败',connection:'暂时无法连接模型选择服务',modelsError:'模型目录暂不可用，可使用 DSH 默认策略',readOnly:'当前连接不能代替用户选择模型'},
+ en: {title:'Subagent model selection',taskbar:'Subagent models',historyClose:'Close task popover',historyEmpty:'No subagent tasks yet',historyHint:'View subagent tasks and models',search:'Search models or providers',defaultName:'Use the DSH default policy',defaultDescription:'Keep the existing DSH subagent model route',reuse:'Reuse this choice for later subagents of the same parent',confirm:'Confirm',confirmReuse:'Confirm and reuse',useDefault:'Use default',after:'s until the DSH default policy',idle:'Activity restarts the countdown',close:'Dismiss temporarily (countdown continues)',empty:'No matching available models',waiting:'Awaiting selection',running:'Running',done:'Completed',cancelled:'Cancelled',choose:'Choose',system:'System',light:'Light',dark:'Dark',theme:'Change the DSH theme',noOverride:'Keep route',defaultBadge:'DSH default policy',task:'Task',error:'Model selection failed',connection:'Cannot connect to the model selection service',modelsError:'Model directory is unavailable; the DSH default policy is still available',readOnly:'This connection cannot answer model questions for the user'}
 };
 const routeKey = route => route ? JSON.stringify([route.provider,route.model]) : 'default';
 const modelLabel = task => task.effectiveModelLabel || (task.route && task.route.model) || null;
 function makeStore(connection) {
  const listeners = new Set();
- let current = {rootSessionId:null,revision:0,serverNow:Date.now(),receivedAt:Date.now(),timeoutMs:60000,models:[],tasks:[],error:null,hidden:false,requestedTaskId:null};
+ let current = {rootSessionId:null,revision:0,serverNow:Date.now(),receivedAt:Date.now(),timeoutMs:60000,models:[],tasks:[],error:null,hidden:false,requestedTaskId:null,historyAnchor:null};
  let controller = null;
  let generation = 0;
  let disposed = false;
@@ -29,7 +29,7 @@ function makeStore(connection) {
   if(snapshot.serverNow && snapshot.serverNow<current.serverNow)return;
   const oldIds=new Set(reset?[]:current.tasks.filter(task=>task.pending).map(task=>task.id));
   const fresh=snapshot.tasks.some(task=>task.pending&&!oldIds.has(task.id));
-  publish({...current,...snapshot,rootSessionId:root,receivedAt:Date.now(),error:null,hidden:reset||fresh?false:current.hidden,requestedTaskId:reset?null:current.requestedTaskId});
+  publish({...current,...snapshot,rootSessionId:root,receivedAt:Date.now(),error:null,hidden:reset||fresh?false:current.hidden,requestedTaskId:reset?null:current.requestedTaskId,historyAnchor:reset||fresh?null:current.historyAnchor});
  }
  async function watch(root,serial) {
   let failures=0;
@@ -57,7 +57,7 @@ function makeStore(connection) {
   connect(root){
    if(disposed || (current.rootSessionId===root && controller && !controller.signal.aborted)) return ()=>{};
    generation++;controller?.abort();clearTimeout(retryTimer);controller=new AbortController();
-   publish({rootSessionId:root,revision:0,serverNow:0,receivedAt:Date.now(),timeoutMs:60000,models:[],tasks:[],error:null,hidden:false,requestedTaskId:null});
+   publish({rootSessionId:root,revision:0,serverNow:0,receivedAt:Date.now(),timeoutMs:60000,models:[],tasks:[],error:null,hidden:false,requestedTaskId:null,historyAnchor:null});
    const serial=generation;void watch(root,serial);
    return()=>{if(generation===serial){controller.abort();generation++;}};
   },
@@ -72,7 +72,9 @@ function makeStore(connection) {
    const response=await call('activity',{rootSessionId:root});apply(response,root);
   },
   dismiss(){publish({...current,hidden:true});},
-  show(id){publish({...current,hidden:false,requestedTaskId:id||null});},
+  show(id){publish({...current,hidden:false,requestedTaskId:id||null,historyAnchor:null});},
+  toggleHistory(anchor){publish({...current,historyAnchor:current.historyAnchor?null:{left:anchor.left,right:anchor.right,top:anchor.top,bottom:anchor.bottom}});},
+  closeHistory(){if(current.historyAnchor)publish({...current,historyAnchor:null});},
   dispose(){disposed=true;generation++;controller?.abort();lifetime.abort();clearTimeout(retryTimer);listeners.clear();}
  };
 }
@@ -220,15 +222,64 @@ return {
       h('p',{className:'ssu-sr',role:'status','aria-live':'polite'},active.title+' — '+t('waiting'))),
      h('footer',{className:'ssu-footer'},h('div',{className:'ssu-timer',role:'timer','aria-live':'off'},seconds+' '+t('after'),h('small',{id:'ssu-idle-note'},t('idle'))),h('div',{className:'ssu-actions'},h('button',{type:'button',className:'ssu-btn',disabled:busy||seconds===0,onClick:()=>choose(null)},t('useDefault')),h('button',{type:'button',className:'ssu-btn ssu-btn-primary',disabled:busy||route===undefined||seconds===0,onClick:()=>choose(route)},reuse&&route?t('confirmReuse'):t('confirm'))))));
   }
+  function TaskHistory() {
+   const snapshot=useSyncExternalStore(store.subscribe,store.getSnapshot);
+   const t=useLocale();
+   const panel=useRef(null);
+   const closeButton=useRef(null);
+   const anchor=snapshot.historyAnchor;
+   const modelDialogVisible=snapshot.tasks.some(task=>task.pending)&&!snapshot.hidden;
+   const visible=!!anchor&&!modelDialogVisible;
+   useEffect(()=>{
+    if(!visible)return;
+    const previous=document.activeElement;
+    closeButton.current?.focus({preventScroll:true});
+    function close(){store.closeHistory();}
+    function key(event){if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();}}
+    function focus(event){if(panel.current&&!panel.current.contains(event.target))close();}
+    function scroll(event){if(panel.current&&!panel.current.contains(event.target))close();}
+    document.addEventListener('keydown',key);
+    document.addEventListener('focusin',focus);
+    document.addEventListener('scroll',scroll,true);
+    window.addEventListener('resize',close);
+    return()=>{
+     document.removeEventListener('keydown',key);
+     document.removeEventListener('focusin',focus);
+     document.removeEventListener('scroll',scroll,true);
+     window.removeEventListener('resize',close);
+     if(previous?.isConnected && (!document.activeElement || document.activeElement===document.body || panel.current?.contains(document.activeElement)))previous.focus({preventScroll:true});
+    };
+   },[visible]);
+   if(!visible)return null;
+   const width=Math.min(440,window.innerWidth-24);
+   const left=Math.max(12,Math.min(anchor.right-width,window.innerWidth-width-12));
+   const roomAbove=Math.max(0,anchor.top-20);
+   const roomBelow=Math.max(0,window.innerHeight-anchor.bottom-20);
+   const above=roomAbove>=Math.min(300,roomBelow);
+   const position={left,width,maxHeight:Math.max(100,Math.min(400,above?roomAbove:roomBelow)),...(above?{bottom:window.innerHeight-anchor.top+8}:{top:anchor.bottom+8})};
+   return h('div',{className:'ssu-root ssu-history-layer',onPointerDown:event=>{if(event.target===event.currentTarget)store.closeHistory();}},
+    h('style',null,CSS_TEXT),
+    h('section',{className:'ssu-history-panel',ref:panel,style:position,role:'dialog','aria-modal':false,'aria-labelledby':'ssu-history-title',id:'ssu-task-history'},
+     h('header',{className:'ssu-history-header'},h('h3',{id:'ssu-history-title'},t('taskbar')+' · '+snapshot.tasks.length),h('button',{type:'button',className:'ssu-close',ref:closeButton,'aria-label':t('historyClose'),onClick:()=>store.closeHistory()},'×')),
+     h('div',{className:'ssu-history-list'},snapshot.tasks.length?snapshot.tasks.map((task,index)=>h('div',{key:task.id,className:'ssu-history-row',style:{'--ssu-order':Math.min(index,8)}},
+      h('div',{className:'ssu-history-task'},h('span',{className:'ssu-history-name'},task.title),h(Badge,{task})),
+      task.pending?h('button',{type:'button',className:'ssu-link',onClick:()=>store.show(task.id)},t('choose')):h('span',{className:'ssu-history-status'},t(task.status==='done'?'done':task.status==='cancelled'?'cancelled':'running')))):h('div',{className:'ssu-empty'},t('historyEmpty'))),
+     snapshot.error?h('p',{className:'ssu-error',role:'status'},t('connection')+' · '+snapshot.error):null));
+  }
   function TaskBar(props) {
    const snapshot=useSyncExternalStore(store.subscribe,store.getSnapshot);
    const t=useLocale();
    useEffect(()=>store.connect(props.sessionId),[props.sessionId]);
    const tasks=snapshot.rootSessionId===props.sessionId?snapshot.tasks:[];
    if(!tasks.length&&!snapshot.error)return null;
-   return h('div',{className:'ssu-root ssu-taskbar'},h('style',null,CSS_TEXT),h('details',{open:true},h('summary',null,t('taskbar')+' · '+tasks.length),tasks.map(task=>h('div',{key:task.id,className:'ssu-taskbar-row'},h('span',{className:'ssu-taskbar-title'},task.title,h(Badge,{task})),task.pending?h('button',{type:'button',className:'ssu-link',onClick:()=>store.show(task.id)},t('choose')):h('span',{className:'ssu-small'},t(task.status==='done'?'done':task.status==='cancelled'?'cancelled':'running'))))),snapshot.error?h('p',{className:'ssu-error',role:'status'},t('connection')+' · '+snapshot.error):null);
+   return h('div',{className:'ssu-root ssu-dock'},h('style',null,CSS_TEXT),
+    h('button',{type:'button',className:'ssu-taskbar-trigger','aria-haspopup':'dialog','aria-expanded':!!snapshot.historyAnchor,'aria-controls':'ssu-task-history',title:t('historyHint'),onClick:event=>store.toggleHistory(event.currentTarget.getBoundingClientRect())},
+     h('svg',{width:14,height:14,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.5,'aria-hidden':true},h('path',{d:'M5 6h14M5 12h14M5 18h9'})),
+     h('span',null,t('taskbar')),h('span',{className:'ssu-taskbar-count'},tasks.length),h('span',{className:'ssu-chevron','aria-hidden':true})),
+    snapshot.error?h('span',{className:'ssu-sr',role:'status'},t('connection')+' · '+snapshot.error):null);
   }
   slots.inject('shell.overlay',()=>slots.register({name:'shell.overlay',id:'selective-subagent-model-dialog',order:30},ModelDialog));
+  slots.inject('shell.overlay',()=>slots.register({name:'shell.overlay',id:'selective-subagent-task-history',order:29},TaskHistory));
   slots.inject('conversation.composer.dock',()=>slots.register({name:'conversation.composer.dock',id:'selective-subagent-model-tasks',order:2},TaskBar));
  }
 };

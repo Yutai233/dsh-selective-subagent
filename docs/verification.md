@@ -34,10 +34,20 @@
 
 模型与 Provider 名称仅为本次环境配置，不是插件附赠的服务。
 
+## 1.0.1 界面修复验收
+
+- 通过官方安装入口升级至 `1.0.1`，返回 `application: applied`、`warnings: []`；在线插槽检查确认新增 `selective-subagent-task-history` 位于 `shell.overlay`。
+- 原先把 `--dsw-alias-bg-overlay` 用于实心面板会出现亮灰表面；改为 `--dsw-alias-bg-layer-1`。蓝色交互/标签改用 `--dsw-alias-state-business-primary`，不再使用中性的 brand token。
+- composer 下只保留一个紧凑按钮，不再渲染 `details` 内联列表。点击按钮后在 `shell.overlay` 以 `position: fixed` 渲染锚定历史浮层。
+- 对比展开前、后的真实窗口截图，输入框上边缘均在原始图片约 y=1237；下面公开的前后图使用相同裁剪区域 `(1120,1228)-(1760,1400)`。浮层只覆盖内容，没有抬升输入框。
+- 真正子代理任务完成后，浮层显示任务名、蓝色模型标签和完成状态；新建任务的真实弹窗已经是与 DSH 对齐的深色表面。
+- 历史条目采用和任务下拉相同的 170ms 淡入/下移、逐项延迟 40ms 动画；遵循 `prefers-reduced-motion`。此动画规则及非布局占位结构有回归检查，截图本身只证明静态结果。
+
 ## 截图来源
 
 - [实际弹窗](live-dialog.png)：从现有 DSH 应用窗口捕获，裁剪为 700 × 694。
-- [完成后的任务栏](live-taskbar.png)：从同一窗口捕获，裁剪为 423 × 108。
+- [任务历史浮层](live-taskbar.png)：从同一窗口捕获，裁剪为 551 × 120。
+- [收起入口](footer-collapsed.png)与[打开浮层](footer-expanded.png)：同一窗口同一裁剪坐标，均为 640 × 172。
 - 仅做矩形裁剪，没有重绘、调色或替换界面文字。公开图片不含侧栏的其它项目/会话、完整聊天内容或登录信息。
 - `preview-*.png` 是早期独立设计稿，和本节实际截图分开标注。
 
@@ -48,7 +58,7 @@ node build.mjs
 node --test test/*.mjs
 ```
 
-总计 33 项：Host 23 项，Client 10 项。
+总计 37 项：Host 23 项，Client 14 项。
 
 ## 验证边界
 
